@@ -1,8 +1,8 @@
+import os
 from birdnetlib import Recording
 from birdnetlib.analyzer import Analyzer
 from datetime import datetime
 import wikipediaapi
-import os
 
 def sound_detector(file_name, lat, lon):
     analyzer = Analyzer()
