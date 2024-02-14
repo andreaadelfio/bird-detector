@@ -73,7 +73,7 @@ def save_names_species(italian_names, detections, italian_species_names):
             page_py = wiki_wiki.page(detection["scientific_name"])
             if page_py.exists():
                 italian_names[detection["scientific_name"]] = page_py.text[9:250].split('<')[0].split(',')[0].title()
-                namesfile.write(f"{detection["scientific_name"]}|{italian_names[detection["scientific_name"]]}\n")
+                namesfile.write(f'{detection["scientific_name"]}|{italian_names[detection["scientific_name"]]}\n')
     namesfile.close()
 
 
