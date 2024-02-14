@@ -1,4 +1,12 @@
-"""Script to detect bird sounds in a .wav recording file and print the detected bird species and their details."""
+"""Script to detect bird sounds in a .wav recording file and print the detected bird species
+   and their details.
+   
+   Created by: Andrea Adelfio
+   Created Date: 01-06-2023
+   Modified Date: 14-02-2024
+   To do:
+   - gestire l'input del nome o dei nomi del file
+   """
 import os
 from datetime import datetime
 from birdnetlib import Recording
@@ -6,7 +14,7 @@ from birdnetlib.analyzer import Analyzer
 import wikipediaapi
 
 
-def sound_detector(file_name, lat, lon):
+def sound_detector(file_name, lat, lon) -> list:
     """
     Detects bird sounds in a recording file.
 
@@ -19,84 +27,94 @@ def sound_detector(file_name, lat, lon):
         list: A list of bird sound detections.
 
     """
-    analyzer = Analyzer()
-    date = datetime.fromtimestamp(os.path.getctime(file_name))
     recording = Recording(
-        analyzer,
+        Analyzer(),
         file_name,
         lat=lat,
         lon=lon,
-        date=datetime(year=date.year, month=date.month, day=date.day),
-        min_conf=0.25,
+        date=datetime.fromtimestamp(os.path.getctime(file_name)),
+        min_conf=0.01,
     )
     recording.analyze()
     return recording.detections
 
 
-def load_names_species(italian_species_filename):
+def load_names_species(species_filename) -> dict:
     """
     Loads the Italian names of bird species from a file.
 
     Args:
-        italian_species_filename (str): The path to the file containing Italian species names.
+        species_filename (str): The path to the file containing Italian species names.
 
     Returns:
         dict: A dictionary mapping scientific names to Italian names.
 
     """
-    italian_species_dict = {}
-    if not os.path.exists(italian_species_filename):
-        open(italian_species_filename, 'w', encoding='utf-8').close()
+    species_dict = {}
+    if not os.path.exists(species_filename):
+        open(species_filename, 'w', encoding='utf-8').close()
     else:
-        with open(italian_species_filename, 'r', encoding='utf-8') as namesfile:
-            for italian_name in namesfile.readlines():
-                a, b = italian_name.split('|')
-                italian_species_dict[a] = b.split('\n')[0]
-    return italian_species_dict
+        with open(species_filename, 'r', encoding='utf-8') as namesfile:
+            for name in namesfile.readlines():
+                a, b, c = name.split('|')
+                species_dict[a] = (c.split('\n')[0], b)
+    print('\nSpecies dictionary\n', species_dict)
+    return species_dict
 
 
-def save_names_species(italian_species_dict, detections_list, italian_species_filename):
+def save_names_species(species_dict, detections_list, species_filename) -> dict:
     """
     Saves the Italian names of newly detected bird species to a file.
 
     Args:
-        italian_species_dict (dict): A dictionary mapping scientific names to Italian names.
+        species_dict (dict): A dictionary mapping scientific names to Italian names.
         detections_list (list): A list of bird sound detections.
-        italian_species_filename (str): The path to the file containing Italian species names.
+        species_filename (str): The path to the file containing Italian species names.
 
     """
-    with open(italian_species_filename, 'a', encoding='utf-8') as namesfile:
+    with open(species_filename, 'w', encoding='utf-8') as namesfile:
         wiki_wiki = wikipediaapi.Wikipedia(
             language='it', extract_format=wikipediaapi.ExtractFormat.HTML, user_agent='bird-detector')
         for detection in detections_list:
-            if not italian_species_dict.get(detection["scientific_name"]):
+            if not species_dict.get(detection["scientific_name"]):
                 page_py = wiki_wiki.page(detection["scientific_name"])
                 if page_py.exists():
-                    italian_species_dict[detection["scientific_name"]] = page_py.text[9:250].split('<')[0].split(',')[0].title()
-                    namesfile.write(f'{detection["scientific_name"]}|{italian_species_dict[detection["scientific_name"]]}\n')
+                    italian_name = page_py.summary.split('<b>')[1].split('<')[0].title()
+                    species_dict[detection["scientific_name"]] = (italian_name, detection["common_name"])
+        species_dict = dict(sorted(species_dict.items()))
+        for scientific_name, names_tuple in species_dict.items():
+            namesfile.write(f'{scientific_name}|{names_tuple[1]}|{names_tuple[0]}\n')
+    return species_dict
 
 
-def print_detections(italian_species_dict, detections_list):
+def print_detections(species_dict, detections_list):
     """
     Prints the detected bird species and their details.
 
     Args:
-        italian_species_dict (dict): A dictionary mapping scientific names to Italian names.
+        species_dict (dict): A dictionary mapping scientific names to Italian names.
         detections_list (list): A list of bird sound detections.
 
     """
-    print('\nDetected:')
+    print('\nDetections:')
     for detection in detections_list:
-        print(italian_species_dict[detection["scientific_name"]] + ':',
-              detection["start_time"], detection["end_time"], detection["confidence"])
+        start_time = detection['start_time']
+        end_time = detection['end_time']
+        (italian_name, english_name) = species_dict[detection['scientific_name']]
+        scientific_name = detection['scientific_name']
+        confidence = round(detection['confidence'], 3)
+        row = f"{start_time}s - {end_time}s -> {italian_name} ({scientific_name}, {english_name}) ({confidence})"
+        print(row)
 
 
 if __name__ == '__main__':
-    FILENAME = str(input('Insert recording name: '))
+    FILENAMES = str(input('Insert recording name: ')).split(',')
     latitude, longitude = 45.65423642845939, 13.812502298723128  # Ts
-    ITALIAN_SPECIES_FILENAME = "italian_species_names.txt"
-    detections = sound_detector(FILENAME, latitude, longitude)
-    italian_names = load_names_species(ITALIAN_SPECIES_FILENAME)
-    print('\nSpecies dictionary\n', italian_names)
-    save_names_species(italian_names, detections, ITALIAN_SPECIES_FILENAME)
-    print_detections(italian_names, detections)
+    current_directory = os.path.dirname(os.path.abspath(__file__))
+    SPECIES_FILENAME = os.path.join(current_directory, "species_names.txt")
+    detections = []
+    for FILENAME in FILENAMES:
+        detections.extend(sound_detector(FILENAME, latitude, longitude))
+    names = load_names_species(SPECIES_FILENAME)
+    names = save_names_species(names, detections, SPECIES_FILENAME)
+    print_detections(names, detections)
