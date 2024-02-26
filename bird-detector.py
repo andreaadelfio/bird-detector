@@ -3,9 +3,8 @@
    
    Created by: Andrea Adelfio
    Created Date: 01-06-2023
-   Modified Date: 14-02-2024
+   Modified Date: 26-02-2024
    To do:
-   - gestire l'input del nome o dei nomi del file
    """
 import os
 from datetime import datetime
@@ -13,6 +12,28 @@ from birdnetlib import Recording
 from birdnetlib.analyzer import Analyzer
 import wikipediaapi
 
+
+def get_filenames() -> list:
+    """
+    Returns a list of recording file names.
+
+    Returns:
+        list: A list of recording file names.
+
+    """
+    tmp_list = str(input('Insert recording name: ')).split(',')
+    filenames_list = []
+    if len(tmp_list) > 0:
+        for filename in tmp_list:
+            if filename.endswith('"'):
+                filename = filename[1:-1]
+            filename = filename.strip().split('/')[-1].split('\\')[-1]
+            if not os.path.exists(filename):
+                print(f"File {filename} not found.")
+            filenames_list.append(filename)
+    else:
+        filenames_list = [f for f in os.listdir() if f.endswith('.wav')]
+    return filenames_list
 
 def sound_detector(file_name, lat, lon) -> list:
     """
@@ -33,7 +54,7 @@ def sound_detector(file_name, lat, lon) -> list:
         lat=lat,
         lon=lon,
         date=datetime.fromtimestamp(os.path.getctime(file_name)),
-        min_conf=0.01,
+        min_conf=0.25,
     )
     recording.analyze()
     return recording.detections
@@ -108,7 +129,7 @@ def print_detections(species_dict, detections_list):
 
 
 if __name__ == '__main__':
-    FILENAMES = str(input('Insert recording name: ')).split(',')
+    FILENAMES = get_filenames()
     latitude, longitude = 45.65423642845939, 13.812502298723128  # Ts
     current_directory = os.path.dirname(os.path.abspath(__file__))
     SPECIES_FILENAME = os.path.join(current_directory, "species_names.txt")
