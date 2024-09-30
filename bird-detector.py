@@ -54,7 +54,7 @@ def sound_detector(file_name, lat, lon) -> list:
         lat=lat,
         lon=lon,
         date=datetime.fromtimestamp(os.path.getctime(file_name)),
-        min_conf=0.25,
+        min_conf=0.7,
     )
     recording.analyze()
     return recording.detections
